@@ -6,6 +6,7 @@
 .assistant/
 *.local.md
 .mcp.json
+.agents
 
 # --- Arquivos sensíveis / segredos ----------------------------------------
 .env
