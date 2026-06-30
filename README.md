@@ -349,3 +349,22 @@ Entre no nosso grupo do WhatsApp para tirar dúvidas, trocar dicas e fazer netwo
 
 Boa sorte e bom desafio! 🚀
 **José Gonçalves Jr - Head de Dados - Sefaz Maceió**
+
+---
+
+## Como reproduzir a solução
+
+Esta solução usa Python com ambiente virtual local e scripts reproduzíveis.
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe scripts\descompactar_arquivos.py
+.venv\Scripts\python.exe scripts\consolidar_dados.py
+.venv\Scripts\python.exe scripts\gerar_base_otimizada.py
+```
+
+A base otimizada é gerada em `dados_processados/finbra_consolidado.parquet`.
+O Parquet foi escolhido por ser um formato colunar, comprimido e rápido para
+releitura analítica. Os dados extraídos e processados ficam fora do Git porque
+podem ser recriados a partir dos ZIPs versionados em `dados_compactos/`.
