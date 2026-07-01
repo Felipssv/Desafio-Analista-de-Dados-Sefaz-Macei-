@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Análise FINBRA - Despesas por Função</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">Dashboard visual gerado automaticamente</p>
+      <h1>Análise FINBRA - Despesas por Função</h1>
+      <p class="lead">
+        Visão consolidada das despesas das capitais brasileiras por função, com foco
+        na relação entre despesas empenhadas e pagas.
+      </p>
+      <div class="notice">
+        Este dashboard visual complementa o relatório técnico em Markdown
+        <strong>analise_finbra.md</strong>. A versão Markdown foi mantida para auditoria,
+        diff em Git e rastreabilidade do processo.
+      </div>
+    </header>
+
+    <section class="cards" aria-label="Indicadores gerais">
+      <div class="metric"><span>Linhas consolidadas</span><strong>50.334</strong></div>
+      <div class="metric"><span>Capitais identificadas</span><strong>26</strong></div>
+      <div class="metric"><span>Funções analisáveis</span><strong>27</strong></div>
+      <div class="metric"><span>Linhas fora dos rankings por função</span><strong>37.521</strong></div>
+    </section>
+
+    <section class="section">
+      <h2>Método</h2>
+      <p>
+        A leitura respeita o formato brasileiro dos CSVs do Siconfi: encoding
+        <strong>latin-1</strong>, separador <strong>;</strong>, três linhas iniciais
+        ignoradas e decimal com vírgula. As análises por função usam apenas linhas
+        classificadas como <strong>funcao</strong>, evitando dupla contagem com totais,
+        subfunções e demais agregações.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Completude por ano</h2>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Ano</th><th>Capitais</th><th>Status</th></tr></thead><tbody><tr><td>2020</td><td>26</td><td>completo</td></tr><tr><td>2021</td><td>26</td><td>completo</td></tr><tr><td>2022</td><td>26</td><td>completo</td></tr><tr><td>2023</td><td>26</td><td>completo</td></tr><tr><td>2024</td><td>26</td><td>completo</td></tr><tr><td>2025</td><td>11</td><td>incompleto</td></tr></tbody></table></div>
+      <p>
+        Anos completos para comparação histórica: 2020, 2021, 2022, 2023, 2024.
+        Ano(s) incompleto(s): 2025.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Rankings de Saúde e Educação em 2024</h2>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Função</th><th>Capital</th><th>Pago per capita</th><th>Taxa de execução</th></tr></thead><tbody><tr><td>10 - Saúde</td><td>Belo Horizonte - MG</td><td>R$ 2.253,18</td><td>89,9%</td></tr><tr><td>10 - Saúde</td><td>Teresina - PI</td><td>R$ 2.003,49</td><td>96,7%</td></tr><tr><td>10 - Saúde</td><td>Campo Grande - MS</td><td>R$ 1.858,04</td><td>88,2%</td></tr><tr><td>10 - Saúde</td><td>São Paulo - SP</td><td>R$ 1.791,32</td><td>96,1%</td></tr><tr><td>10 - Saúde</td><td>Porto Alegre - RS</td><td>R$ 1.739,84</td><td>87,3%</td></tr><tr><td>12 - Educação</td><td>Vitória - ES</td><td>R$ 2.232,14</td><td>91,9%</td></tr><tr><td>12 - Educação</td><td>São Paulo - SP</td><td>R$ 1.827,98</td><td>95,8%</td></tr><tr><td>12 - Educação</td><td>Palmas - TO</td><td>R$ 1.809,99</td><td>97,9%</td></tr><tr><td>12 - Educação</td><td>Boa Vista - RR</td><td>R$ 1.611,01</td><td>97,2%</td></tr><tr><td>12 - Educação</td><td>Florianópolis - SC</td><td>R$ 1.464,21</td><td>96,1%</td></tr></tbody></table></div>
+    </section>
+
+    <section class="section">
+      <h2>Maiores diferenças entre empenhado e pago em 2024</h2>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Capital</th><th>Função</th><th>Empenhado</th><th>Pago</th><th>Diferença</th><th>Taxa de execução</th></tr></thead><tbody><tr><td>São Paulo - SP</td><td>15 - Urbanismo</td><td>R$ 12.071.750.665,81</td><td>R$ 10.203.722.086,42</td><td>R$ 1.868.028.579,39</td><td>84,5%</td></tr><tr><td>São Paulo - SP</td><td>12 - Educação</td><td>R$ 23.290.435.795,57</td><td>R$ 22.301.640.088,44</td><td>R$ 988.795.707,13</td><td>95,8%</td></tr><tr><td>São Paulo - SP</td><td>10 - Saúde</td><td>R$ 22.752.837.820,49</td><td>R$ 21.854.464.654,11</td><td>R$ 898.373.166,38</td><td>96,1%</td></tr><tr><td>São Paulo - SP</td><td>17 - Saneamento</td><td>R$ 2.868.478.794,47</td><td>R$ 2.022.166.546,08</td><td>R$ 846.312.248,39</td><td>70,5%</td></tr><tr><td>Curitiba - PR</td><td>15 - Urbanismo</td><td>R$ 1.805.830.695,76</td><td>R$ 982.059.804,58</td><td>R$ 823.770.891,18</td><td>54,4%</td></tr><tr><td>Rio de Janeiro - RJ</td><td>12 - Educação</td><td>R$ 7.151.238.932,58</td><td>R$ 6.475.560.709,52</td><td>R$ 675.678.223,06</td><td>90,6%</td></tr><tr><td>Belo Horizonte - MG</td><td>10 - Saúde</td><td>R$ 5.993.532.028,34</td><td>R$ 5.391.129.586,40</td><td>R$ 602.402.441,94</td><td>89,9%</td></tr><tr><td>Rio de Janeiro - RJ</td><td>10 - Saúde</td><td>R$ 7.642.644.288,09</td><td>R$ 7.093.295.406,04</td><td>R$ 549.348.882,05</td><td>92,8%</td></tr><tr><td>Rio de Janeiro - RJ</td><td>09 - Previdência Social</td><td>R$ 6.789.834.775,46</td><td>R$ 6.260.036.852,91</td><td>R$ 529.797.922,55</td><td>92,2%</td></tr><tr><td>São Paulo - SP</td><td>16 - Habitação</td><td>R$ 5.281.552.995,13</td><td>R$ 4.760.425.320,14</td><td>R$ 521.127.674,99</td><td>90,1%</td></tr></tbody></table></div>
+    </section>
+
+    <section class="section">
+      <h2>Maceió contra média das capitais</h2>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Ano</th><th>Função</th><th>Maceió execução</th><th>Média execução</th><th>Maceió pago per capita</th><th>Média pago per capita</th></tr></thead><tbody><tr><td>2020</td><td>10 - Saúde</td><td>98,7%</td><td>92,9%</td><td>R$ 766,94</td><td>R$ 881,20</td></tr><tr><td>2020</td><td>12 - Educação</td><td>89,2%</td><td>93,5%</td><td>R$ 313,16</td><td>R$ 617,60</td></tr><tr><td>2021</td><td>10 - Saúde</td><td>97,7%</td><td>92,7%</td><td>R$ 737,29</td><td>R$ 939,08</td></tr><tr><td>2021</td><td>12 - Educação</td><td>82,9%</td><td>85,5%</td><td>R$ 375,40</td><td>R$ 659,03</td></tr><tr><td>2022</td><td>10 - Saúde</td><td>98,4%</td><td>92,2%</td><td>R$ 832,41</td><td>R$ 997,61</td></tr><tr><td>2022</td><td>12 - Educação</td><td>94,3%</td><td>88,0%</td><td>R$ 702,25</td><td>R$ 835,78</td></tr><tr><td>2023</td><td>10 - Saúde</td><td>97,8%</td><td>93,3%</td><td>R$ 1.235,46</td><td>R$ 1.158,78</td></tr><tr><td>2023</td><td>12 - Educação</td><td>94,4%</td><td>91,3%</td><td>R$ 593,80</td><td>R$ 957,60</td></tr><tr><td>2024</td><td>10 - Saúde</td><td>97,4%</td><td>94,2%</td><td>R$ 1.314,67</td><td>R$ 1.348,42</td></tr><tr><td>2024</td><td>12 - Educação</td><td>85,5%</td><td>92,9%</td><td>R$ 715,71</td><td>R$ 1.158,05</td></tr></tbody></table></div>
+    </section>
+
+    <section class="section">
+      <h2>Prévia de 2025: capitais declarantes</h2>
+      <p>
+        Como 2025 tem apenas parte das capitais declaradas, este recorte não é
+        comparado com o conjunto completo de capitais. A comparação temporal usa somente
+        as capitais que aparecem em 2025.
+      </p>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>UF</th><th>Capital declarante</th></tr></thead><tbody><tr><td>AC</td><td>Rio Branco - AC</td></tr><tr><td>AM</td><td>Manaus - AM</td></tr><tr><td>BA</td><td>Salvador - BA</td></tr><tr><td>CE</td><td>Fortaleza - CE</td></tr><tr><td>GO</td><td>Goiânia - GO</td></tr><tr><td>MA</td><td>São Luís - MA</td></tr><tr><td>MG</td><td>Belo Horizonte - MG</td></tr><tr><td>PA</td><td>Belém - PA</td></tr><tr><td>RJ</td><td>Rio de Janeiro - RJ</td></tr><tr><td>RO</td><td>Porto Velho - RO</td></tr><tr><td>SC</td><td>Florianópolis - SC</td></tr></tbody></table></div>
+
+      <h3>Ranking preliminar de Saúde e Educação em 2025</h3>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Função</th><th>Capital</th><th>Pago per capita</th><th>Taxa de execução</th></tr></thead><tbody><tr><td>10 - Saúde</td><td>Belo Horizonte - MG</td><td>R$ 2.445,94</td><td>88,6%</td></tr><tr><td>10 - Saúde</td><td>Goiânia - GO</td><td>R$ 1.476,87</td><td>98,4%</td></tr><tr><td>10 - Saúde</td><td>São Luís - MA</td><td>R$ 1.392,67</td><td>92,5%</td></tr><tr><td>10 - Saúde</td><td>Fortaleza - CE</td><td>R$ 1.370,73</td><td>98,7%</td></tr><tr><td>10 - Saúde</td><td>Porto Velho - RO</td><td>R$ 1.263,68</td><td>94,9%</td></tr><tr><td>12 - Educação</td><td>Florianópolis - SC</td><td>R$ 1.437,60</td><td>93,1%</td></tr><tr><td>12 - Educação</td><td>Belo Horizonte - MG</td><td>R$ 1.416,70</td><td>91,6%</td></tr><tr><td>12 - Educação</td><td>Manaus - AM</td><td>R$ 1.378,62</td><td>98,5%</td></tr><tr><td>12 - Educação</td><td>Goiânia - GO</td><td>R$ 1.334,41</td><td>94,6%</td></tr><tr><td>12 - Educação</td><td>Porto Velho - RO</td><td>R$ 1.286,46</td><td>97,2%</td></tr></tbody></table></div>
+
+      <h3>Painel balanceado: 2024 vs 2025</h3>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Capital</th><th>Função</th><th>Pago pc 2024</th><th>Pago pc 2025</th><th>Variação pago pc</th><th>Execução 2024</th><th>Execução 2025</th></tr></thead><tbody><tr><td>São Luís - MA</td><td>10 - Saúde</td><td>R$ 1.216,39</td><td>R$ 1.392,67</td><td>14,5%</td><td>89,5%</td><td>92,5%</td></tr><tr><td>Belém - PA</td><td>12 - Educação</td><td>R$ 629,19</td><td>R$ 717,03</td><td>14,0%</td><td>95,1%</td><td>89,0%</td></tr><tr><td>São Luís - MA</td><td>12 - Educação</td><td>R$ 958,68</td><td>R$ 1.080,91</td><td>12,7%</td><td>78,6%</td><td>77,4%</td></tr><tr><td>Belo Horizonte - MG</td><td>12 - Educação</td><td>R$ 1.263,57</td><td>R$ 1.416,70</td><td>12,1%</td><td>90,3%</td><td>91,6%</td></tr><tr><td>Rio Branco - AC</td><td>10 - Saúde</td><td>R$ 864,56</td><td>R$ 772,66</td><td>-10,6%</td><td>97,1%</td><td>93,4%</td></tr><tr><td>Goiânia - GO</td><td>12 - Educação</td><td>R$ 1.213,97</td><td>R$ 1.334,41</td><td>9,9%</td><td>94,0%</td><td>94,6%</td></tr><tr><td>Florianópolis - SC</td><td>10 - Saúde</td><td>R$ 958,08</td><td>R$ 1.045,20</td><td>9,1%</td><td>91,9%</td><td>91,7%</td></tr><tr><td>Belo Horizonte - MG</td><td>10 - Saúde</td><td>R$ 2.253,18</td><td>R$ 2.445,94</td><td>8,6%</td><td>89,9%</td><td>88,6%</td></tr><tr><td>Manaus - AM</td><td>10 - Saúde</td><td>R$ 797,01</td><td>R$ 854,07</td><td>7,2%</td><td>95,4%</td><td>97,0%</td></tr><tr><td>Manaus - AM</td><td>12 - Educação</td><td>R$ 1.296,83</td><td>R$ 1.378,62</td><td>6,3%</td><td>98,4%</td><td>98,5%</td></tr></tbody></table></div>
+    </section>
+
+    <section class="section">
+      <h2>Gráficos</h2>
+      <div class="charts">
+        <figure class="chart"><img src="graficos/maceio_taxa_execucao_saude_educacao.png" alt="Maceio taxa execucao saude educacao"><figcaption>Maceio taxa execucao saude educacao</figcaption></figure><figure class="chart"><img src="graficos/ranking_pago_per_capita_saude_educacao.png" alt="Ranking pago per capita saude educacao"><figcaption>Ranking pago per capita saude educacao</figcaption></figure><figure class="chart"><img src="graficos/previa_2025_variacao_pago_per_capita.png" alt="Previa 2025 variacao pago per capita"><figcaption>Previa 2025 variacao pago per capita</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Conclusões principais</h2>
+      <ul>
+        <li>A comparação anual deve priorizar 2020 a 2024, pois 2025 tem apenas parte das capitais declaradas.</li>
+        <li>A prévia de 2025 compara capitais declarantes contra elas mesmas em 2024.</li>
+        <li>A taxa de execução financeira mostra a distância entre o gasto comprometido e o efetivamente pago.</li>
+        <li>Os rankings por função excluem agregados para evitar dupla contagem.</li>
+        <li>A leitura per capita é essencial para comparar capitais de portes diferentes.</li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      Gerado por <code>scripts/analisar_indicadores.py</code>.
+    </footer>
+  </main>
+</body>
+</html>

@@ -10,6 +10,9 @@ subfunções e `FUxx - Demais Subfunções`.
 Foram identificadas 50.334 linhas na base consolidada. Destas, 37.521
 linhas não são funções e ficam fora dos rankings por função.
 
+Também foi gerado um dashboard visual em `relatorios/analise_finbra.html`, com estilos em
+`relatorios/dashboard.css`, para uma leitura mais confortável dos resultados.
+
 ## Completude por ano
 
 | Ano | Capitais | Status |

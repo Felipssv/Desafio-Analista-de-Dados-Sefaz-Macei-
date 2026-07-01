@@ -362,9 +362,14 @@ python -m venv .venv
 .venv\Scripts\python.exe scripts\descompactar_arquivos.py
 .venv\Scripts\python.exe scripts\consolidar_dados.py
 .venv\Scripts\python.exe scripts\gerar_base_otimizada.py
+.venv\Scripts\python.exe scripts\analisar_indicadores.py
 ```
 
 A base otimizada é gerada em `dados_processados/finbra_consolidado.parquet`.
 O Parquet foi escolhido por ser um formato colunar, comprimido e rápido para
 releitura analítica. Os dados extraídos e processados ficam fora do Git porque
 podem ser recriados a partir dos ZIPs versionados em `dados_compactos/`.
+
+Além do relatório técnico em `relatorios/analise_finbra.md`, a análise gera
+também um dashboard visual em `relatorios/analise_finbra.html`, com estilos em
+`relatorios/dashboard.css`, para facilitar a leitura e apresentação dos resultados.
