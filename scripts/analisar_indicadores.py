@@ -21,13 +21,31 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 os.environ.setdefault("MPLCONFIGDIR", str(MPL_CACHE_DIR))
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 
 STAGE_EMPENHADO = "Despesas Empenhadas"
+STAGE_LIQUIDADO = "Despesas Liquidadas"
 STAGE_PAGO = "Despesas Pagas"
+STAGE_RESTOS_NAO_PROCESSADOS = "Inscrição de Restos a Pagar Não Processados"
+STAGE_RESTOS_PROCESSADOS = "Inscrição de Restos a Pagar Processados"
+EXPENSE_STAGES = [
+    STAGE_EMPENHADO,
+    STAGE_LIQUIDADO,
+    STAGE_PAGO,
+    STAGE_RESTOS_NAO_PROCESSADOS,
+    STAGE_RESTOS_PROCESSADOS,
+]
 MACEIO = "Prefeitura Municipal de Maceió - AL"
+MACEIO_IBGE = "2704302"
 FOCUS_FUNCTIONS = ["10", "12"]
 PREVIEW_YEAR = 2025
 PREVIEW_BASELINE_YEAR = 2024
+RELEVANT_COMMITMENT_MIN = 1_000_000
+LOW_EXECUTION_CSV_PATH = REPORT_DIR / "baixa_execucao_2024.csv"
+RESTOS_CSV_PATH = REPORT_DIR / "restos_a_pagar_2024.csv"
+SUBFUNCTIONS_CSV_PATH = REPORT_DIR / "subfuncoes_maceio_2024.csv"
+MACEIO_DISTRIBUTION_CSV_PATH = REPORT_DIR / "maceio_distribuicao_capitais.csv"
+EXECUTION_ABOVE_100_CSV_PATH = REPORT_DIR / "taxas_execucao_acima_100.csv"
 
 
 def money(value: float) -> str:
@@ -46,6 +64,10 @@ def percent(value: float) -> str:
     if pd.isna(value):
         return "-"
     return f"{value:.1f}%".replace(".", ",")
+
+
+def millions_axis(value: float, _position: int) -> str:
+    return f"R$ {value / 1_000_000:.0f} mi"
 
 
 def clean_capital_name(series: pd.Series) -> pd.Series:
@@ -97,24 +119,6 @@ def read_optimized_data() -> pd.DataFrame:
 def build_function_indicators(df: pd.DataFrame) -> pd.DataFrame:
     functions = df[df["tipo_conta"].eq("funcao")].copy()
 
-    grouped = (
-        functions.groupby(
-            [
-                "ano",
-                "Instituição",
-                "Cod.IBGE",
-                "UF",
-                "População",
-                "codigo_funcao",
-                "nome_conta",
-                "Conta",
-            ],
-            observed=True,
-        )["Valor"]
-        .sum()
-        .reset_index()
-    )
-
     pivot = (
         functions.pivot_table(
             index=[
@@ -136,7 +140,51 @@ def build_function_indicators(df: pd.DataFrame) -> pd.DataFrame:
         .rename_axis(columns=None)
     )
 
-    for stage in [STAGE_EMPENHADO, STAGE_PAGO]:
+    for stage in EXPENSE_STAGES:
+        if stage not in pivot.columns:
+            pivot[stage] = 0.0
+
+    pivot["diferenca_empenhado_pago"] = pivot[STAGE_EMPENHADO] - pivot[STAGE_PAGO]
+    pivot["taxa_execucao"] = (
+        pivot[STAGE_PAGO].div(pivot[STAGE_EMPENHADO]).where(pivot[STAGE_EMPENHADO].gt(0)) * 100
+    )
+    pivot["restos_a_pagar"] = pivot[STAGE_RESTOS_NAO_PROCESSADOS] + pivot[STAGE_RESTOS_PROCESSADOS]
+    pivot["restos_sobre_empenhado"] = (
+        pivot["restos_a_pagar"].div(pivot[STAGE_EMPENHADO]).where(pivot[STAGE_EMPENHADO].gt(0))
+        * 100
+    )
+    pivot["pago_per_capita"] = pivot[STAGE_PAGO] / pivot["População"]
+    pivot["empenhado_per_capita"] = pivot[STAGE_EMPENHADO] / pivot["População"]
+
+    return pivot
+
+
+def build_subfunction_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    subfunctions = df[df["tipo_conta"].eq("subfuncao")].copy()
+
+    pivot = (
+        subfunctions.pivot_table(
+            index=[
+                "ano",
+                "Instituição",
+                "Cod.IBGE",
+                "UF",
+                "População",
+                "codigo_funcao",
+                "codigo_conta",
+                "nome_conta",
+                "Conta",
+            ],
+            columns="Coluna",
+            values="Valor",
+            aggfunc="sum",
+            fill_value=0,
+        )
+        .reset_index()
+        .rename_axis(columns=None)
+    )
+
+    for stage in EXPENSE_STAGES:
         if stage not in pivot.columns:
             pivot[stage] = 0.0
 
@@ -145,23 +193,8 @@ def build_function_indicators(df: pd.DataFrame) -> pd.DataFrame:
         pivot[STAGE_PAGO].div(pivot[STAGE_EMPENHADO]).where(pivot[STAGE_EMPENHADO].gt(0)) * 100
     )
     pivot["pago_per_capita"] = pivot[STAGE_PAGO] / pivot["População"]
-    pivot["empenhado_per_capita"] = pivot[STAGE_EMPENHADO] / pivot["População"]
 
-    return pivot.merge(
-        grouped[
-            [
-                "ano",
-                "Instituição",
-                "Cod.IBGE",
-                "UF",
-                "População",
-                "codigo_funcao",
-                "nome_conta",
-                "Conta",
-            ]
-        ],
-        how="inner",
-    )
+    return pivot
 
 
 def completeness_table(df: pd.DataFrame) -> pd.DataFrame:
@@ -233,6 +266,139 @@ def biggest_gaps(indicators: pd.DataFrame, year: int) -> pd.DataFrame:
             "Pago": gaps[STAGE_PAGO].map(money),
             "Diferença": gaps["diferenca_empenhado_pago"].map(money),
             "Taxa de execução": gaps["taxa_execucao"].map(percent),
+        }
+    )
+
+
+def low_execution_ranking(indicators: pd.DataFrame, year: int) -> pd.DataFrame:
+    ranking = indicators[
+        indicators["ano"].eq(year)
+        & indicators["taxa_execucao"].notna()
+        & indicators[STAGE_EMPENHADO].ge(RELEVANT_COMMITMENT_MIN)
+    ].copy()
+    return ranking.sort_values("taxa_execucao").head(10)
+
+
+def format_low_execution_ranking(df: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Capital": clean_capital_name(df["Instituição"]),
+            "Função": df["Conta"],
+            "Empenhado": df[STAGE_EMPENHADO].map(money),
+            "Pago": df[STAGE_PAGO].map(money),
+            "Taxa de execução": df["taxa_execucao"].map(percent),
+        }
+    )
+
+
+def restos_a_pagar_panel(indicators: pd.DataFrame, year: int) -> pd.DataFrame:
+    panel = indicators[
+        indicators["ano"].eq(year)
+        & indicators["restos_sobre_empenhado"].notna()
+        & indicators[STAGE_EMPENHADO].ge(RELEVANT_COMMITMENT_MIN)
+    ].copy()
+    return panel.sort_values("restos_sobre_empenhado", ascending=False).head(10)
+
+
+def format_restos_a_pagar_panel(df: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Capital": clean_capital_name(df["Instituição"]),
+            "Função": df["Conta"],
+            "Empenhado": df[STAGE_EMPENHADO].map(money),
+            "Restos a pagar": df["restos_a_pagar"].map(money),
+            "Restos sobre empenhado": df["restos_sobre_empenhado"].map(percent),
+            "Taxa de execução": df["taxa_execucao"].map(percent),
+        }
+    )
+
+
+def execution_above_100(indicators: pd.DataFrame, complete_years: list[int]) -> pd.DataFrame:
+    outliers = indicators[
+        indicators["ano"].isin(complete_years) & indicators["taxa_execucao"].gt(100)
+    ].copy()
+    return outliers.sort_values("taxa_execucao", ascending=False).head(10)
+
+
+def format_execution_above_100(df: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Ano": df["ano"].astype(str),
+            "Capital": clean_capital_name(df["Instituição"]),
+            "Função": df["Conta"],
+            "Empenhado": df[STAGE_EMPENHADO].map(money),
+            "Pago": df[STAGE_PAGO].map(money),
+            "Taxa de execução": df["taxa_execucao"].map(percent),
+        }
+    )
+
+
+def maceio_vs_distribution(indicators: pd.DataFrame, complete_years: list[int]) -> pd.DataFrame:
+    focus = indicators[
+        indicators["ano"].isin(complete_years) & indicators["codigo_funcao"].isin(FOCUS_FUNCTIONS)
+    ].copy()
+    focus["rank_pago_pc"] = focus.groupby(["ano", "codigo_funcao"])["pago_per_capita"].rank(
+        method="min", ascending=False
+    )
+    distribution = (
+        focus.groupby(["ano", "codigo_funcao", "Conta"], as_index=False)
+        .agg(
+            media_pago_per_capita=("pago_per_capita", "mean"),
+            mediana_pago_per_capita=("pago_per_capita", "median"),
+            mediana_taxa_execucao=("taxa_execucao", "median"),
+            capitais=("Instituição", "nunique"),
+        )
+    )
+    maceio = focus[focus["Cod.IBGE"].astype(str).eq(MACEIO_IBGE)]
+    comparison = maceio.merge(distribution, on=["ano", "codigo_funcao", "Conta"], how="left")
+
+    return comparison.sort_values(["ano", "codigo_funcao"])
+
+
+def format_maceio_vs_distribution(df: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Ano": df["ano"].astype(str),
+            "Função": df["Conta"],
+            "Maceió pago pc": df["pago_per_capita"].map(money),
+            "Média pago pc": df["media_pago_per_capita"].map(money),
+            "Mediana pago pc": df["mediana_pago_per_capita"].map(money),
+            "Posição pago pc": df.apply(
+                lambda row: f"{int(row['rank_pago_pc'])}º de {int(row['capitais'])}", axis=1
+            ),
+            "Maceió execução": df["taxa_execucao"].map(percent),
+            "Mediana execução": df["mediana_taxa_execucao"].map(percent),
+        }
+    )
+
+
+def maceio_focus_subfunctions(subfunction_indicators: pd.DataFrame, year: int) -> pd.DataFrame:
+    subfunctions = subfunction_indicators[
+        subfunction_indicators["ano"].eq(year)
+        & subfunction_indicators["Cod.IBGE"].astype(str).eq(MACEIO_IBGE)
+        & subfunction_indicators["codigo_funcao"].isin(FOCUS_FUNCTIONS)
+        & subfunction_indicators[STAGE_PAGO].gt(0)
+    ].copy()
+    subfunctions["participacao_pago_funcao"] = (
+        subfunctions[STAGE_PAGO].div(subfunctions.groupby("codigo_funcao")[STAGE_PAGO].transform("sum"))
+        * 100
+    )
+    return (
+        subfunctions.sort_values(["codigo_funcao", STAGE_PAGO], ascending=[True, False])
+        .groupby("codigo_funcao", group_keys=False)
+        .head(6)
+    )
+
+
+def format_maceio_focus_subfunctions(df: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Função": df["codigo_funcao"].map({"10": "Saúde", "12": "Educação"}),
+            "Subfunção": df["Conta"],
+            "Pago": df[STAGE_PAGO].map(money),
+            "Pago per capita": df["pago_per_capita"].map(money),
+            "Participação na função": df["participacao_pago_funcao"].map(percent),
+            "Taxa de execução": df["taxa_execucao"].map(percent),
         }
     )
 
@@ -330,6 +496,31 @@ def preview_2025_balanced_panel(indicators: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def write_auxiliary_tables(
+    indicators: pd.DataFrame,
+    subfunction_indicators: pd.DataFrame,
+    complete_years: list[int],
+    latest_year: int,
+) -> None:
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+    low_execution_ranking(indicators, latest_year).to_csv(
+        LOW_EXECUTION_CSV_PATH, index=False, encoding="utf-8-sig"
+    )
+    restos_a_pagar_panel(indicators, latest_year).to_csv(
+        RESTOS_CSV_PATH, index=False, encoding="utf-8-sig"
+    )
+    maceio_focus_subfunctions(subfunction_indicators, latest_year).to_csv(
+        SUBFUNCTIONS_CSV_PATH, index=False, encoding="utf-8-sig"
+    )
+    maceio_vs_distribution(indicators, complete_years).to_csv(
+        MACEIO_DISTRIBUTION_CSV_PATH, index=False, encoding="utf-8-sig"
+    )
+    execution_above_100(indicators, complete_years).to_csv(
+        EXECUTION_ABOVE_100_CSV_PATH, index=False, encoding="utf-8-sig"
+    )
+
+
 def create_charts(indicators: pd.DataFrame, complete_years: list[int], latest_year: int) -> list[Path]:
     CHART_DIR.mkdir(parents=True, exist_ok=True)
     chart_paths: list[Path] = []
@@ -355,6 +546,32 @@ def create_charts(indicators: pd.DataFrame, complete_years: list[int], latest_ye
     plt.close(fig)
     chart_paths.append(path)
 
+    maceio_latest = indicators[
+        indicators["ano"].eq(latest_year) & indicators["Cod.IBGE"].astype(str).eq(MACEIO_IBGE)
+    ].copy()
+    maceio_latest = maceio_latest.sort_values("diferenca_empenhado_pago", ascending=False).head(8)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    labels = maceio_latest["codigo_funcao"] + " " + maceio_latest["nome_conta"]
+    bars = ax.barh(labels, maceio_latest["diferenca_empenhado_pago"], color="#9c6b1f")
+    ax.set_title(f"Maceió: maiores diferenças entre empenhado e pago ({latest_year})")
+    ax.set_xlabel("Diferença entre empenhado e pago")
+    ax.xaxis.set_major_formatter(FuncFormatter(millions_axis))
+    ax.bar_label(
+        bars,
+        labels=[f"R$ {value / 1_000_000:.1f} mi".replace(".", ",") for value in maceio_latest["diferenca_empenhado_pago"]],
+        padding=4,
+        fontsize=9,
+    )
+    ax.margins(x=0.12)
+    ax.invert_yaxis()
+    ax.grid(axis="x", alpha=0.3)
+    fig.tight_layout()
+    path = CHART_DIR / "maceio_diferencas_empenhado_pago.png"
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    chart_paths.append(path)
+
     focus_latest = indicators[
         indicators["ano"].eq(latest_year) & indicators["codigo_funcao"].isin(FOCUS_FUNCTIONS)
     ].copy()
@@ -373,6 +590,7 @@ def create_charts(indicators: pd.DataFrame, complete_years: list[int], latest_ye
     ax.barh(labels, top_latest["pago_per_capita"], color="#2f6f73")
     ax.set_title(f"Maiores gastos pagos per capita em Saúde e Educação ({latest_year})")
     ax.set_xlabel("Pago per capita (R$)")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _position: f"R$ {value:,.0f}".replace(",", ".")))
     ax.invert_yaxis()
     ax.grid(axis="x", alpha=0.3)
     fig.tight_layout()
@@ -412,7 +630,8 @@ def create_charts(indicators: pd.DataFrame, complete_years: list[int], latest_ye
     colors = preview_comparison["variacao"].map(lambda value: "#2f6f73" if value >= 0 else "#9c3f3f")
     ax.barh(preview_comparison["label"], preview_comparison["variacao"], color=colors)
     ax.set_title("Prévia 2025: variação do pago per capita nas capitais declarantes")
-    ax.set_xlabel(f"Variação {PREVIEW_BASELINE_YEAR}-{PREVIEW_YEAR} (%)")
+    ax.set_xlabel(f"Variação {PREVIEW_BASELINE_YEAR}-{PREVIEW_YEAR}")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _position: f"{value:.0f}%".replace(".", ",")))
     ax.axvline(0, color="#333333", linewidth=0.8)
     ax.invert_yaxis()
     ax.grid(axis="x", alpha=0.3)
@@ -428,6 +647,7 @@ def create_charts(indicators: pd.DataFrame, complete_years: list[int], latest_ye
 def write_report(
     df: pd.DataFrame,
     indicators: pd.DataFrame,
+    subfunction_indicators: pd.DataFrame,
     completeness: pd.DataFrame,
     chart_paths: list[Path],
 ) -> None:
@@ -472,6 +692,38 @@ Também foi gerado um dashboard visual em `relatorios/analise_finbra.html`, com 
     report += markdown_table(biggest_gaps(indicators, latest_year))
     report += "\n\n"
 
+    report += f"## Baixa execução financeira em {latest_year}\n\n"
+    report += (
+        f"O recorte abaixo considera funções com pelo menos {money(RELEVANT_COMMITMENT_MIN)} "
+        "em despesas empenhadas, para evitar que valores residuais dominem a leitura.\n\n"
+    )
+    report += markdown_table(format_low_execution_ranking(low_execution_ranking(indicators, latest_year)))
+    report += f"\n\nTabela auxiliar: `{LOW_EXECUTION_CSV_PATH.relative_to(ROOT_DIR).as_posix()}`.\n\n"
+
+    report += f"## Restos a pagar sobre empenhado em {latest_year}\n\n"
+    report += markdown_table(format_restos_a_pagar_panel(restos_a_pagar_panel(indicators, latest_year)))
+    report += f"\n\nTabela auxiliar: `{RESTOS_CSV_PATH.relative_to(ROOT_DIR).as_posix()}`.\n\n"
+
+    report += "## Maceió contra distribuição das capitais\n\n"
+    report += markdown_table(format_maceio_vs_distribution(maceio_vs_distribution(indicators, complete_years)))
+    report += f"\n\nTabela auxiliar: `{MACEIO_DISTRIBUTION_CSV_PATH.relative_to(ROOT_DIR).as_posix()}`.\n\n"
+
+    report += f"## Subfunções de Saúde e Educação em Maceió ({latest_year})\n\n"
+    report += markdown_table(
+        format_maceio_focus_subfunctions(maceio_focus_subfunctions(subfunction_indicators, latest_year))
+    )
+    report += f"\n\nTabela auxiliar: `{SUBFUNCTIONS_CSV_PATH.relative_to(ROOT_DIR).as_posix()}`.\n\n"
+
+    report += "## Taxas de execução acima de 100%\n\n"
+    report += (
+        "Algumas funções aparecem com despesas pagas maiores que as empenhadas no mesmo ano. "
+        "Isso não deve ser lido automaticamente como erro: pode refletir pagamentos de restos "
+        "de exercícios anteriores ou outras dinâmicas contábeis. O ponto é tratar esses casos "
+        "como alerta interpretativo antes de comparar rankings.\n\n"
+    )
+    report += markdown_table(format_execution_above_100(execution_above_100(indicators, complete_years)))
+    report += f"\n\nTabela auxiliar: `{EXECUTION_ABOVE_100_CSV_PATH.relative_to(ROOT_DIR).as_posix()}`.\n\n"
+
     report += "## Maceió contra média das capitais\n\n"
     report += markdown_table(maceio_vs_average(indicators, complete_years))
     report += "\n\n"
@@ -505,7 +757,9 @@ Também foi gerado um dashboard visual em `relatorios/analise_finbra.html`, com 
 
 - A comparação anual deve priorizar 2020 a 2024, pois 2025 tem apenas parte das capitais declaradas.
 - A prévia de 2025 só compara capitais declarantes contra elas mesmas em 2024.
-- A taxa de execução financeira mostra a distância entre o gasto comprometido e o efetivamente pago.
+- Em 2024, Maceió combina alta execução em Saúde com diferenças mais relevantes entre empenhado e pago em Urbanismo e Educação.
+- O detalhamento por subfunção mostra que Saúde se concentra em assistência hospitalar e atenção básica, enquanto Educação se concentra em ensino fundamental, administração geral e educação básica.
+- Restos a pagar e taxas acima de 100% precisam ser lidos como sinais de dinâmica orçamentária, não apenas como ranking simples.
 - Os rankings por função excluem agregados para evitar dupla contagem.
 - A leitura per capita é essencial para comparar capitais de portes muito diferentes.
 """
@@ -717,6 +971,7 @@ p {
 def write_html_dashboard(
     df: pd.DataFrame,
     indicators: pd.DataFrame,
+    subfunction_indicators: pd.DataFrame,
     completeness: pd.DataFrame,
     chart_paths: list[Path],
 ) -> None:
@@ -802,6 +1057,40 @@ def write_html_dashboard(
     </section>
 
     <section class="section">
+      <h2>Baixa execução financeira em {latest_year}</h2>
+      <p>
+        O recorte considera funções com pelo menos {html.escape(money(RELEVANT_COMMITMENT_MIN))}
+        em despesas empenhadas, reduzindo o ruído de valores residuais.
+      </p>
+      {html_table(format_low_execution_ranking(low_execution_ranking(indicators, latest_year)))}
+    </section>
+
+    <section class="section">
+      <h2>Restos a pagar sobre empenhado em {latest_year}</h2>
+      {html_table(format_restos_a_pagar_panel(restos_a_pagar_panel(indicators, latest_year)))}
+    </section>
+
+    <section class="section">
+      <h2>Maceió contra distribuição das capitais</h2>
+      {html_table(format_maceio_vs_distribution(maceio_vs_distribution(indicators, complete_years)))}
+    </section>
+
+    <section class="section">
+      <h2>Subfunções de Saúde e Educação em Maceió ({latest_year})</h2>
+      {html_table(format_maceio_focus_subfunctions(maceio_focus_subfunctions(subfunction_indicators, latest_year)))}
+    </section>
+
+    <section class="section">
+      <h2>Taxas de execução acima de 100%</h2>
+      <p>
+        Casos em que despesas pagas superam empenhadas no mesmo ano devem ser tratados como
+        alerta interpretativo, pois podem refletir pagamentos de restos de exercícios anteriores
+        ou outras dinâmicas contábeis.
+      </p>
+      {html_table(format_execution_above_100(execution_above_100(indicators, complete_years)))}
+    </section>
+
+    <section class="section">
       <h2>Maceió contra média das capitais</h2>
       {html_table(maceio_vs_average(indicators, complete_years))}
     </section>
@@ -834,7 +1123,9 @@ def write_html_dashboard(
       <ul>
         <li>A comparação anual deve priorizar 2020 a 2024, pois 2025 tem apenas parte das capitais declaradas.</li>
         <li>A prévia de 2025 compara capitais declarantes contra elas mesmas em 2024.</li>
-        <li>A taxa de execução financeira mostra a distância entre o gasto comprometido e o efetivamente pago.</li>
+        <li>Em 2024, Maceió combina alta execução em Saúde com diferenças mais relevantes entre empenhado e pago em Urbanismo e Educação.</li>
+        <li>O detalhamento por subfunção mostra concentração em assistência hospitalar, atenção básica, ensino fundamental e administração geral.</li>
+        <li>Restos a pagar e taxas acima de 100% precisam ser lidos como sinais de dinâmica orçamentária, não apenas como ranking simples.</li>
         <li>Os rankings por função excluem agregados para evitar dupla contagem.</li>
         <li>A leitura per capita é essencial para comparar capitais de portes diferentes.</li>
       </ul>
@@ -855,15 +1146,18 @@ def main() -> None:
     df = read_optimized_data()
     completeness = completeness_table(df)
     indicators = build_function_indicators(df)
+    subfunction_indicators = build_subfunction_indicators(df)
     complete_years = completeness.loc[completeness["capitais"].eq(26), "ano"].astype(int).tolist()
     latest_year = latest_complete_year(completeness)
+    write_auxiliary_tables(indicators, subfunction_indicators, complete_years, latest_year)
     chart_paths = create_charts(indicators, complete_years, latest_year)
-    write_report(df, indicators, completeness, chart_paths)
-    write_html_dashboard(df, indicators, completeness, chart_paths)
+    write_report(df, indicators, subfunction_indicators, completeness, chart_paths)
+    write_html_dashboard(df, indicators, subfunction_indicators, completeness, chart_paths)
 
     print(f"Relatorio gerado em: {REPORT_PATH.relative_to(ROOT_DIR)}")
     print(f"Dashboard visual gerado em: {HTML_REPORT_PATH.relative_to(ROOT_DIR)}")
     print(f"Estilos do dashboard gerados em: {CSS_PATH.relative_to(ROOT_DIR)}")
+    print("Tabelas auxiliares geradas em: relatorios/*.csv")
     for path in chart_paths:
         print(f"Grafico gerado em: {path.relative_to(ROOT_DIR)}")
 
